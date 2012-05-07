@@ -59,7 +59,8 @@ class NachaFile {
     private $referencecode = '        ';
     public $fileContents = '';
 
-    public function addPayment($paymentinfo){
+    // Takes money from someone elses account and puts it in yours
+    public function addDebit($paymentinfo){
         if(!is_array($paymentinfo))return false;
         if(!$paymentinfo['Transcode']){
             if($paymentinfo['AccountType']){
@@ -74,6 +75,29 @@ class NachaFile {
                 $paymentinfo['Transcode'] = '27';
             }
         }
+        return $this->addDetailLine($paymentinfo);
+    }
+
+    // Takes money from your account and puts it into someone elses.
+    public function addCredit($paymentinfo){
+        if(!is_array($paymentinfo))return false;
+        if(!$paymentinfo['Transcode']){
+            if($paymentinfo['AccountType']){
+                if($paymentinfo['AccountType'] == 'CHECKING'){
+                    $paymentinfo['Transcode'] = '22';
+                }elseif($paymentinfo['AccountType'] == 'SAVINGS'){
+                    $paymentinfo['Transcode'] = '32';
+                }else{
+                    return false;
+                }
+            }else{
+                $paymentinfo['Transcode'] = '22';
+            }
+        }
+        return $this->addDetailLine($paymentinfo);
+    }
+
+    private function addDetailLine($paymentinfo){
         if(!$paymentinfo['AccountNumber'] || !$paymentinfo['TotalAmount'] || !$paymentinfo['BankAccountNumber'] || !$paymentinfo['RoutingNumber'] || !$paymentinfo['FormattedName'] || !$paymentinfo['AccountType']){
             return false;
         }
