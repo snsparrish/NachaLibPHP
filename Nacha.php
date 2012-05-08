@@ -29,7 +29,8 @@ class NachaFile {
     private $settlementAccount;
     public $detailRecordCount = 0;
     private $routingHash = 0;
-    public $detailsTotal = 0;
+    public $creditTotal = 0;
+    public $debitTotal = 0;
     public $errorRecords = array();
     public $processedRecords = array();
     private $tranid = 0;
@@ -75,7 +76,8 @@ class NachaFile {
                 $paymentinfo['Transcode'] = '27';
             }
         }
-        return $this->addDetailLine($paymentinfo);
+        $this->addDetailLine($paymentinfo);
+        return true;
     }
 
     // Takes money from your account and puts it into someone elses.
@@ -94,7 +96,8 @@ class NachaFile {
                 $paymentinfo['Transcode'] = '22';
             }
         }
-        return $this->addDetailLine($paymentinfo);
+        $this->addDetailLine($paymentinfo);
+        return true;
     }
 
     private function addDetailLine($paymentinfo){
@@ -235,21 +238,32 @@ class NachaFile {
             $this->batchLines .= $line."\n";
             $this->detailRecordCount++;
             $this->routingHash += (int)substr($info['RoutingNumber'],0,8);
-            $this->detailsTotal += (float)$info['TotalAmount'];
+            if($info['Transcode'] == '27' || $info['Transcode'] == '37'){
+                $this->debitTotal += (float)$info['TotalAmount'];
+            }else{
+                $this->creditTotal += (float)$info['TotalAmount'];
+            }
             return true;
         }
         return false;
     }
 
     private function createBatchFooter(){
-        $this->batchFooter = '8'.$this->scc.$this->formatNumeric($this->detailRecordCount,6).$this->formatNumeric($this->routingHash,10).$this->formatNumeric(number_format($this->detailsTotal,2),12).$this->formatNumeric('',12).$this->formatText($this->companyId,10).$this->formatText('',25).substr($this->bankrt,0,8).$this->formatNumeric($this->batchNumber,7);
+        $this->batchFooter = '8'.$this->scc.$this->formatNumeric($this->detailRecordCount,6).$this->formatNumeric($this->routingHash,10).$this->formatNumeric(number_format($this->debitTotal,2),12).$this->formatNumeric(number_format($this->creditTotal,2),12).$this->formatText($this->companyId,10).$this->formatText('',25).substr($this->bankrt,0,8).$this->formatNumeric($this->batchNumber,7);
         if(strlen($this->batchFooter) == 94) $this->validBatchFooter = true;
         return $this;
     }
 
     private function createFileFooter(){
-        $this->fileFooter = '9'.$this->formatNumeric('1',6).$this->formatNumeric(ceil(($this->detailRecordCount+4)/10),6).$this->formatNumeric($this->detailRecordCount,8).$this->formatNumeric($this->routingHash,10).$this->formatNumeric(number_format($this->detailsTotal,2),12).$this->formatNumeric('',12).$this->formatText('',39);
+        $linecount = $this->detailRecordCount+4;
+        $blocks = ceil(($linecount)/10);
+        $this->fileFooter = '9'.$this->formatNumeric('1',6).$this->formatNumeric($blocks,6).$this->formatNumeric($this->detailRecordCount,8).$this->formatNumeric($this->routingHash,10).$this->formatNumeric(number_format($this->debitTotal,2),12).$this->formatNumeric(number_format($this->creditTotal,2),12).$this->formatText('',39);
         if(strlen($this->fileFooter) == 94) $this->validFileFooter = true;
+        // Add any additional '9' lines to get something evenly divisable by 10.
+        $fillersToAdd = ($blocks*10)-$linecount;
+        for($i=0;$i<$fillersToAdd;$i++){
+            $this->fileFooter .= "\n".str_pad('', 94,'9');
+        }
         return $this;
     }
 
