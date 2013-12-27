@@ -9,9 +9,9 @@ If you need more functionality, I'm available for contract work at sparrish@node
 include 'Nacha.php';
 $nacha = new NachaFile();
 $nacha->setBankRT('123456789')// Your bank's routing number
-      ->setCompanyId('98765443210')// Usually your company Fed tax id with something the bank tells you to put on the front.
+      ->setCompanyId('9876543210')// Usually your company Fed tax id with something the bank tells you to put on the front.
       ->setSettlementAccount('44444444444') // Your bank account you want the money to go into
-      ->setFileID('98765443210')// Probably the same as your Company ID but your bank will tell you what this should be.
+      ->setFileID('9876543210')// Probably the same as your Company ID but your bank will tell you what this should be.
       ->setOriginatingBank('BANK ON IT')// Text name of your bank
       ->setFileModifier('A')// Usually just A - for the first file of the day.  Change to 'B' for second file of the day and so on.
       ->setCompanyName('MY COMPANY')//16 chars - your company name
