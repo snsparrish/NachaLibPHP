@@ -62,7 +62,8 @@ class NachaFile {
 
     // Takes money from someone elses account and puts it in yours
     public function addDebit($paymentinfo){
-        if(!is_array($paymentinfo))return false;
+        $exception = new Exception('Payment information is incorrectly formatted');
+        if(!is_array($paymentinfo)) return false; // throw $exception;
         if(!$paymentinfo['Transcode']){
             if($paymentinfo['AccountType']){
                 if($paymentinfo['AccountType'] == 'CHECKING'){
@@ -70,9 +71,11 @@ class NachaFile {
                 }elseif($paymentinfo['AccountType'] == 'SAVINGS'){
                     $paymentinfo['Transcode'] = '37';
                 }else{
+                    // throw $exception;
                     return false;
                 }
             }else{
+                // assume checking account
                 $paymentinfo['Transcode'] = '27';
             }
         }
@@ -82,7 +85,8 @@ class NachaFile {
 
     // Takes money from your account and puts it into someone elses.
     public function addCredit($paymentinfo){
-        if(!is_array($paymentinfo))return false;
+        $exception = new Exception('Payment information is incorrectly formatted');
+        if(!is_array($paymentinfo)) return false; // throw $exception;
         if(!$paymentinfo['Transcode']){
             if($paymentinfo['AccountType']){
                 if($paymentinfo['AccountType'] == 'CHECKING'){
@@ -90,9 +94,11 @@ class NachaFile {
                 }elseif($paymentinfo['AccountType'] == 'SAVINGS'){
                     $paymentinfo['Transcode'] = '32';
                 }else{
+                    // throw $exception;
                     return false;
                 }
             }else{
+                // assume checking account
                 $paymentinfo['Transcode'] = '22';
             }
         }
@@ -101,7 +107,7 @@ class NachaFile {
     }
 
     private function addDetailLine($paymentinfo){
-        if(!$paymentinfo['AccountNumber'] || !$paymentinfo['TotalAmount'] || !$paymentinfo['BankAccountNumber'] || !$paymentinfo['RoutingNumber'] || !$paymentinfo['FormattedName'] || !$paymentinfo['AccountType']){
+        if(/*!$paymentinfo['AccountNumber'] ||*/ !$paymentinfo['TotalAmount'] || !$paymentinfo['BankAccountNumber'] || !$paymentinfo['RoutingNumber'] || !$paymentinfo['FormattedName'] || !$paymentinfo['AccountType']){
             return false;
         }
         $paymentinfo['TranId'] = $this->tranid+1;
@@ -123,6 +129,7 @@ class NachaFile {
     }
 
     public function setSettlementAccount($settlementAccount){
+        // INACTIVE
         $this->settlementAccount = $settlementAccount;
         return $this;
     }
@@ -222,7 +229,7 @@ class NachaFile {
 
     private function createFileHeader(){
         $this->fileHeader = '101 '.$this->bankrt.$this->fileId.date('ymdHi').$this->filemodifier.$this->recordsize.$this->blockingfactor.$this->formatcode.$this->formatText($this->originatingBank,23).$this->formatText($this->companyName,23).$this->formatText($this->referencecode,8);
-        if(strlen($this->fileHeader) == 94) $this->validFileHeader = true;
+        if(strlen($this->fileHeader) == intval($this->recordsize)) $this->validFileHeader = true;
         return $this;
     }
 
@@ -233,8 +240,10 @@ class NachaFile {
     }
 
     private function createDetailRecord($info){
-        $line = '6'.$info['Transcode'].$info['RoutingNumber'].$this->formatText($info['BankAccountNumber'],17).$this->formatNumeric($info['TotalAmount'],10).$this->formatText($info['AccountNumber'],15).$this->formatText($info['FormattedName'],22).'  0'.substr($this->bankrt,0,8).$this->formatNumeric($info['TranId'],7);
-        if(strlen($line) == 94){
+        // format the line based on SEC code for the batch
+        if(!in_array($this->sec, array('PPD','CCD','CTX','WEB','TEL'))) return false;
+        $line = call_user_func_array(array($this, 'create'.$this->sec.'DetailLine'), array($info));
+        if(strlen($line) == intval($this->recordsize)){
             $this->batchLines .= $line."\n";
             $this->detailRecordCount++;
             $this->routingHash += (int)substr($info['RoutingNumber'],0,8);
@@ -245,12 +254,31 @@ class NachaFile {
             }
             return true;
         }
+        throw new Exception('Unable to add '.print_r($info, true));
         return false;
+    }
+    private function createWEBDetailLine($info){
+        throw new Exception('WEB detail records are not yet built');
+        return '';
+    }
+    private function createCTXDetailLine($info){
+        throw new Exception('CTX detail records are not yet built');
+        return '';
+    }
+    private function createTELDetailLine($info){
+        throw new Exception('TEL detail records are not yet built');
+        return '';
+    }
+    private function createPPDDetailLine($info){
+        return '6'.$info['Transcode'].$this->formatText($info['RoutingNumber'],9).$this->formatText($info['BankAccountNumber'],17).$this->formatNumeric(number_format($info['TotalAmount'],2),10).$this->formatText($info['AccountNumber'],15).$this->formatText($info['FormattedName'],22).'  0'.substr($this->bankrt,0,8).$this->formatNumeric($info['TranId'],7);
+    }
+    private function createCCDDetailLine($info){
+        return '6'.$info['Transcode'].$this->formatText($info['RoutingNumber'],9).$this->formatText($info['BankAccountNumber'],17).$this->formatNumeric(number_format($info['TotalAmount'],2),10).$this->formatText($info['AccountNumber'],15).$this->formatText($info['FormattedName'],22).'  0'.substr($this->bankrt,0,8).$this->formatNumeric($info['TranId'],7);
     }
 
     private function createBatchFooter(){
         $this->batchFooter = '8'.$this->scc.$this->formatNumeric($this->detailRecordCount,6).$this->formatNumeric($this->routingHash,10).$this->formatNumeric(number_format($this->debitTotal,2),12).$this->formatNumeric(number_format($this->creditTotal,2),12).$this->formatText($this->companyId,10).$this->formatText('',25).substr($this->bankrt,0,8).$this->formatNumeric($this->batchNumber,7);
-        if(strlen($this->batchFooter) == 94) $this->validBatchFooter = true;
+        if(strlen($this->batchFooter) == intval($this->recordsize)) $this->validBatchFooter = true;
         return $this;
     }
 
@@ -258,12 +286,7 @@ class NachaFile {
         $linecount = $this->detailRecordCount+4;
         $blocks = ceil(($linecount)/10);
         $this->fileFooter = '9'.$this->formatNumeric('1',6).$this->formatNumeric($blocks,6).$this->formatNumeric($this->detailRecordCount,8).$this->formatNumeric($this->routingHash,10).$this->formatNumeric(number_format($this->debitTotal,2),12).$this->formatNumeric(number_format($this->creditTotal,2),12).$this->formatText('',39);
-        if(strlen($this->fileFooter) == 94) $this->validFileFooter = true;
-        // Add any additional '9' lines to get something evenly divisable by 10.
-        $fillersToAdd = ($blocks*10)-$linecount;
-        for($i=0;$i<$fillersToAdd;$i++){
-            $this->fileFooter .= "\n".str_pad('', 94,'9');
-        }
+        if(strlen($this->fileFooter) == intval($this->recordsize)) $this->validFileFooter = true;
         return $this;
     }
 
