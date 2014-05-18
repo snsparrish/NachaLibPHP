@@ -59,7 +59,7 @@ class NachaFile {
     private $formatcode = '1';
     private $referencecode = '        ';
     public $fileContents = '';
-
+    public paymenttypecode = 'S';
     // Takes money from someone elses account and puts it in yours
     public function addDebit($paymentinfo){
         if(!is_array($paymentinfo))return false;
@@ -197,6 +197,10 @@ class NachaFile {
         $this->entryDate = date('ymd',strtotime($date));
         return $this;
     }
+     public function setPaymentTypeCode($type){
+        $this->paymenttypecode = $type;
+        return $this;
+    }
 
     public function generateFile($filemodifier=false){
         if($filemodifier)$this->setFileModifier($filemodifier);
@@ -233,7 +237,7 @@ class NachaFile {
     }
 
     private function createDetailRecord($info){
-        $line = '6'.$info['Transcode'].$info['RoutingNumber'].$this->formatText($info['BankAccountNumber'],17).$this->formatNumeric($info['TotalAmount'],10).$this->formatText($info['AccountNumber'],15).$this->formatText($info['FormattedName'],22).'  0'.substr($this->bankrt,0,8).$this->formatNumeric($info['TranId'],7);
+        $line = '6'.$info['Transcode'].$info['RoutingNumber'].$this->formatText($info['BankAccountNumber'],17).$this->formatNumeric($info['TotalAmount'],10).$this->formatText($info['AccountNumber'],15).$this->formatText($info['FormattedName'],22). $this->formatText($this->paymenttypecode,2). '0'.substr($this->bankrt,0,8).$this->formatNumeric($info['TranId'],7);
         if(strlen($line) == 94){
             $this->batchLines .= $line."\n";
             $this->detailRecordCount++;
