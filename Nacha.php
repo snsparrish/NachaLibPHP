@@ -59,8 +59,8 @@ class NachaFile {
     private $formatcode = '1';
     private $referencecode = '        ';
     public $fileContents = '';
-    public paymenttypecode = 'S';
-    // Takes money from someone elses account and puts it in yours
+    public $paymenttypecode = 'S';
+    // Takes money from someone else account and puts it in yours
     public function addDebit($paymentinfo){
         if(!is_array($paymentinfo))return false;
         if(!$paymentinfo['Transcode']){
@@ -197,6 +197,7 @@ class NachaFile {
         $this->entryDate = date('ymd',strtotime($date));
         return $this;
     }
+	
      public function setPaymentTypeCode($type){
         $this->paymenttypecode = $type;
         return $this;
