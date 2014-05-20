@@ -59,7 +59,7 @@ class NachaFile {
     private $formatcode = '1';
     private $referencecode = '        ';
     public $fileContents = '';
-    public $paymenttypecode = 'S';
+    public $paymenttypecode = '';
     // Takes money from someone else account and puts it in yours
     public function addDebit($paymentinfo){
         if(!is_array($paymentinfo))return false;
