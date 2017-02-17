@@ -24,6 +24,8 @@
 
 class NachaFile {
 
+    const LINES_GLUE = "\n"; // \n = LF, \r\n = CRLF
+
     private $fileId;
     private $companyId;
     private $settlementAccount;
@@ -221,7 +223,7 @@ class NachaFile {
         if(!$this->validFileFooter){
             throw new Exception('Invalid File Footer');
         }
-        $this->fileContents = $this->fileHeader."\n".$this->batchHeader."\n".$this->batchLines.$this->batchFooter."\n".$this->fileFooter;
+        $this->fileContents = $this->fileHeader.$this::LINES_GLUE.$this->batchHeader.$this::LINES_GLUE.$this->batchLines.$this->batchFooter.$this::LINES_GLUE.$this->fileFooter;
         return true;
     }
 
@@ -240,7 +242,7 @@ class NachaFile {
     private function createDetailRecord($info){
         $line = '6'.$info['Transcode'].$info['RoutingNumber'].$this->formatText($info['BankAccountNumber'],17).$this->formatNumeric(number_format($info['TotalAmount'],2),10).$this->formatText($info['AccountNumber'],15).$this->formatText($info['FormattedName'],22). $this->formatText($this->paymenttypecode,2). '0'.substr($this->bankrt,0,8).$this->formatNumeric($info['TranId'],7);
         if(strlen($line) == 94){
-            $this->batchLines .= $line."\n";
+            $this->batchLines .= $line.$this::LINES_GLUE;
             $this->detailRecordCount++;
             $this->routingHash += (int)substr($info['RoutingNumber'],0,8);
             if($info['Transcode'] == '27' || $info['Transcode'] == '37'){
@@ -267,7 +269,7 @@ class NachaFile {
         // Add any additional '9' lines to get something evenly divisable by 10.
         $fillersToAdd = ($blocks*10)-$linecount;
         for($i=0;$i<$fillersToAdd;$i++){
-            $this->fileFooter .= "\n".str_pad('', 94,'9');
+            $this->fileFooter .= $this::LINES_GLUE.str_pad('', 94,'9');
         }
         return $this;
     }
