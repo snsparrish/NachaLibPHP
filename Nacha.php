@@ -65,7 +65,7 @@ class NachaFile {
     // Takes money from someone else account and puts it in yours
     public function addDebit($paymentinfo){
         if(!is_array($paymentinfo))return false;
-        if(!$paymentinfo['Transcode']){
+        if(!isset($paymentinfo['Transcode'])){
             if($paymentinfo['AccountType']){
                 if($paymentinfo['AccountType'] == 'CHECKING'){
                     $paymentinfo['Transcode'] = '27';
@@ -85,7 +85,7 @@ class NachaFile {
     // Takes money from your account and puts it into someone elses.
     public function addCredit($paymentinfo){
         if(!is_array($paymentinfo))return false;
-        if(!$paymentinfo['Transcode']){
+        if(!isset($paymentinfo['Transcode'])){
             if($paymentinfo['AccountType']){
                 if($paymentinfo['AccountType'] == 'CHECKING'){
                     $paymentinfo['Transcode'] = '22';
